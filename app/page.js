@@ -1,41 +1,39 @@
 'use client'
 import Image from "next/image"
 import { ChangeEvent, useState, useEffect } from 'react'
-import { firestore } from '@/firebase'
-import { Box, Button, Modal, Stack, TextField, Typography } from '@mui/material'
+import { firestore } from '/firebase.js'
+import { Box, Button, IconButton, Modal, Stack, TextField, Typography } from '@mui/material'
 import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc } from "firebase/firestore"
-
-/*import { DeleteIcon } from '@mui/icons-material/Delete'*/
+import { DeleteIcon } from '@mui/icons-material'
 
 export default function Home() {
-  /* STATE VARIABLES */
+  /* --- STATE VARIABLES --- */
   const [pantry, setPantry] = useState([])
   const [open, setOpen] = useState(false)
   const [itemName, setItemName] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
 
-  /*  UPDATE PANTRY */
+  /* --- FOR SEARCH BAR --- */
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredItems, setFilteredItems] = useState([])
+
+  /* --- FOR EDITING ITEM QUANTITY --- */
+  const [openEditMenu, setOpenEditMenu] = useState(false)
+  const [itemToEdit, setItemToEdit] = useState(0)
+
+  /* --- UPDATE PANTRY --- */
   const updatePantry = async () => {
     /* `async` is a keyword that is used to declare a function that returns a Promise
       A Promise is a result object that is used to handle asynchronous operations. 
       ---
       In this function, the `async` keyword is used to indicate that the function will
       perform an asynchronous operation: Fetch data from the Firestore database. */
-    const pantryRef = collection(firestore, 'pantry')
-    const q = query(pantryRef,
-      where("name", ">=", searchQuery),
-      where("name", "<=", searchQuery + "\uf8ff"));
-      
-    const querySnapshot = await getDocs(q)
-    const pantryList = []
-    querySnapshot.forEach((doc) => {
-      if (doc.data().name !== undefined) {
-          PantryList[doc.data().name] = doc.data().quantity || 0;
-        }
-    });
-    setPantry(pantryList);
-    
-    /* Do i keep this part under this comment? */
+    const snapshot = query(collection(firestore, 'pantry'));
+    /* Queries the Firestore database to retrieve a snapshot of the `pantry` collection. */
+    const pantryDocs = await getDocs(snapshot);
+    /* The `getDocs` method retrieves the documents in the `pantry` collection */
+    const pantryList = [];
+    /* Create a new array */
+
     pantryDocs.forEach((pantryDoc) => {
       /* Loop through each document that was retrieved from the `pantry`. */
       pantryList.push({
@@ -48,8 +46,19 @@ export default function Home() {
     /* Update the `pantry` state variable with the new `pantryList` array. */
   }
 
+  /* --- EDIT ITEM QUANTITY --- */
+  const editItem = async (name, newQuantity) => {
+    try {
+      const docRef = doc(firestore, "pantry", name);
+      await setDoc(docRef, {quantity: newQuantity });
+      await updatePantry()
+      setItemToEdit(newQuantity)
+    } catch (error) {
+      console.error("Error editing item in pantry:", error);
+    }
+  }
 
-  /*  ADD ITEM */
+  /* --- ADD ITEM --- */
   const addItem = async (item) => {
     const docRef = doc(collection(firestore, 'pantry'), item)
     /* Create a reference to a document in the `pantry` collection of the Firestore database.
@@ -68,7 +77,7 @@ export default function Home() {
   }
  
 
-  /*  REMOVE ITEM */
+  /* --- REMOVE ITEM --- */
   const removeItem = async (item) => {
     const docRef = doc(collection(firestore, 'pantry'), item)
     const docSnap = await getDoc(docRef)
@@ -97,7 +106,20 @@ export default function Home() {
   }
 
 
-  useEffect(() => { updatePantry() }, [searchQuery]);
+  useEffect(() => { updatePantry() }, [])
+
+  /* --- FILTER PANTRY ITEMS BASED ON SEARCH QUERY --- */
+  useEffect(() => { 
+    if (searchQuery) {
+      const filtered = pantry.filter(item =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        setFilteredItems(filtered);
+      } else {
+        setFilteredItems(pantry);
+      }
+    }, [searchQuery])
+
+  console.log(pantry)
 
   const handleOpen = () => setOpen(true)
   const handleClose = () => setOpen(false)
@@ -113,9 +135,13 @@ export default function Home() {
       alignItems={"center"}
       gap={2}
     > 
-      <Typography variant="h2">Pantry Manager</Typography>
+      <Typography variant="h2" fontFamily="Space Mono">Pantry Manager</Typography>
+      
+      {/* --- SEARCH BAR --- */}
       <TextField
-        sx={{width: 800}}
+        sx={{
+          width: 800,
+        }}
         variant="outlined"
         label="Search Pantry"
         value={searchQuery}
@@ -137,7 +163,7 @@ export default function Home() {
           gap={3}
           sx={{ transform: 'translate(-50%, -50%)' }}
         >
-          <Typography variant="h6" fontFamily="Space Mono">Add Item</Typography>
+          <Typography variant="h6">Add Item</Typography>
           <Stack width="100%" direction="row" spacing={2}>
             <TextField
               fullWidth
@@ -167,10 +193,12 @@ export default function Home() {
           justifyContent="space-between"
           alignItems="center"
         >
-          <Typography variant="h6" color="#fff" sx={{flexBasis: '40%'}}>Items</Typography>
-          <Typography variant="h6" color="#fff" sx={{flexBasis: '40%'}}>Quantity</Typography>
-          <Typography variant="h6" color="#fff" sx={{flexBasis: '20%'}}>Edit</Typography>
+          <Typography variant="h6" color="#fff" fontFamily="Space Mono" sx={{flexBasis: '40%'}}>Items</Typography>
+          <Typography variant="h6" color="#fff" fontFamily="Space Mono" sx={{flexBasis: '40%'}}>Quantity</Typography>
+          <Typography variant="h6" color="#fff" fontFamily="Space Mono" sx={{flexBasis: '20%'}}>Edit</Typography>
         </Box>
+        
+        {/* --- LIST ITEMS CONTAINER --- */}
         <Stack
           id="list-items-container"
           width="800px"
@@ -190,24 +218,19 @@ export default function Home() {
             '&::-webkit-scrollbar': {
               display: "none",
             },
-            /*'&::-webkit-scrollbar-thumb': {
-              backgroundColor: '#000',
-              borderRadius: '10px',
-            },
-            '&::-webkit-scrollbar-track': {
-                backgroundColor: '#fff',
-                borderRadius: '10px',
-            },
-            */
           }}>
-          {pantry.map(({ name, quantity }) => (
+
+          {/* --- LIST ITEMS --- */}
+          {filteredItems.map(({ name, quantity }) => (
             <Box
               id="list-items"
               key={name}
               width="97%"
               height="50px"
+              border="2px solid #4d5965"
               borderRadius={2}
               padding={3}
+              boxShadow="0px 4px 0px #6e98ab"
               display="flex"
               justifyContent="space-between"
               alignItems="center"
@@ -220,17 +243,66 @@ export default function Home() {
                 {quantity}
               </Typography>
               <Stack direction="row" spacing={0.5} sx={{flexBasis: '20%'}}>
-                <Button variant="contained" onClick={() => { addItem(name) }}>
-                  Add
-                </Button>
-                <Button variant="contained" onClick={() => { removeItem(name) }}>
-                  Remove
-                </Button>
+                
+                {/* EDIT BUTTON */}
+                <Button
+                 variant="contained"
+                 onClick={() => {
+                  setOpenEditMenu(true)
+                  setItemToEdit({ name: name, quantity: quantity})
+                 }}>EDIT</Button>
+                
+                {/* DELETE ITEM BUTTON */}
+                <Button variant="contained" onClick={() => { deleteItem(name) }}>DELETE</Button>
+
               </Stack>
             </Box>
           ))}
         </Stack>
       </Box>
+
+      {/* EDIT BUTTON OPERATION */}
+      <Modal
+        open={openEditMenu}
+        onClose={() => setOpenEditMenu(false)}
+      >
+        <Box
+        sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 400,
+          height: 300,
+          bgcolor: 'white',
+          border: '4px solid #223040',
+          borderRadius:2,
+          boxShadow: 24,
+          p: 4,
+        }}>
+          <Typography id="edit-menu-title" variant="h6">Edit Pantry Item</Typography>
+            <Stack direction="column" spacing={2}>
+              <TextField
+                id="outline-basic"
+                variant="outlined"
+                type="number"
+                label="Item Quantity"
+                value={itemToEdit.quantity}
+                onChange={(e) => setItemToEdit({ ...itemToEdit, quantity: parseInt(e.target.value) })}
+              ></TextField>
+              <Button className="black_btn"
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  editItem(itemToEdit.name, itemToEdit.quantity);
+                  setOpenEditMenu(false);
+              }}>Save Changes</Button>
+
+            </Stack>
+        </Box>
+
+      </Modal>
+        
     </Box>
   )
 }
