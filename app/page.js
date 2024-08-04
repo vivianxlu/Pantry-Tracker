@@ -4,7 +4,7 @@ import { ChangeEvent, useState, useEffect } from 'react'
 import { firestore } from '/firebase.js'
 import { Box, Button, IconButton, Modal, Stack, TextField, Typography } from '@mui/material'
 import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc } from "firebase/firestore"
-import { DeleteIcon } from '@mui/icons-material'
+import { CenterFocusStrong, DeleteIcon } from '@mui/icons-material'
 
 export default function Home() {
   /* --- STATE VARIABLES --- */
@@ -117,7 +117,7 @@ export default function Home() {
       } else {
         setFilteredItems(pantry);
       }
-    }, [searchQuery])
+    }, [searchQuery, pantry])
 
   console.log(pantry)
 
@@ -125,7 +125,7 @@ export default function Home() {
   const handleClose = () => setOpen(false)
 
   return (
-    
+
     <Box
       width="100vw"
       height="100vh"
@@ -254,7 +254,6 @@ export default function Home() {
                 
                 {/* DELETE ITEM BUTTON */}
                 <Button variant="contained" onClick={() => { deleteItem(name) }}>DELETE</Button>
-
               </Stack>
             </Box>
           ))}
@@ -280,7 +279,7 @@ export default function Home() {
           boxShadow: 24,
           p: 4,
         }}>
-          <Typography id="edit-menu-title" variant="h6">Edit Pantry Item</Typography>
+          <Typography id="edit-menu-title" variant="h6" fontFamily="Space Mono">Edit Pantry Item</Typography>
             <Stack direction="column" spacing={2}>
               <TextField
                 id="outline-basic"
@@ -297,12 +296,9 @@ export default function Home() {
                   editItem(itemToEdit.name, itemToEdit.quantity);
                   setOpenEditMenu(false);
               }}>Save Changes</Button>
-
             </Stack>
         </Box>
-
       </Modal>
-        
     </Box>
   )
 }
